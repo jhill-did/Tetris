@@ -262,12 +262,17 @@ function tick() {
 
   const tileSize = 20;
 
-  context.fillStyle = 'rgb(100, 100, 100)';
-
+  context.fillStyle = 'rgb(44, 28, 42)';
   context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+
+  context.fillStyle = 'rgb(100, 100, 100)';
+  context.fillStyle = 'rgb(28, 18, 27)';
+
   context.save();
   context.translate(5, -10);
-  context.strokeRect(
+  context.fillRect(
     0,
     canvas.height,
     tileSize * board.width,
@@ -296,7 +301,7 @@ function tick() {
         x: (tile.x + ghostOffset.x) * tileSize,
         y: canvas.height - (tile.y + ghostOffset.y) * tileSize
       };
-      context.fillStyle = 'rgba(150, 150, 150, 0.5)';
+      context.fillStyle = 'rgba(150, 150, 150, 0.25)';
       context.fillRect(position.x, position.y, tileSize, tileSize);
     });
 
