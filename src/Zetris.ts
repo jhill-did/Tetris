@@ -26,66 +26,6 @@ type GameState = {
   totalLinesCleared: number,
 };
 
-let gameState: GameState = {} as GameState;
-(window as any).gameState = gameState;
-
-const setState = (input): void => {
-  let modification;
-  if (typeof input === 'function') {
-    modification = input(gameState);
-  } else {
-    modification = input;
-  }
-
-  gameState = { ...gameState, ...modification };
-  (window as any).gameState = gameState;
-};
-
-const pushInput = (event: KeyboardEvent): void => {
-  setState(prevState => ({ inputQueue: [...prevState.inputQueue, event] }));
-};
-
-const initialize = (): void => {
-  const tetrominoQueue = [
-    Tetromino.getRandomShape(),
-    Tetromino.getRandomShape(),
-    Tetromino.getRandomShape(),
-  ];
-
-  const board = new Board(10, 24);
-
-  let initialState: GameState = {
-    elapsedTime: 0,
-    prevTime: getTime(),
-    fallTimer: 0,
-    inputQueue: [],
-    gameStarted: false,
-    moveStats: {
-      hardDropDistance: 0,
-      linesCleared: 0,
-      softDropDistance: 0,
-    },
-    tetrominoQueue,
-    board,
-    tiles: [],
-    currentTetromino: null,
-    currentOffset: null,
-    savedTetromino: null,
-    blockSwap: false,
-    score: 0,
-    level: 1,
-    totalLinesCleared: 0,
-  };
-
-  // Build our first tetromino and starting position from this state then
-  // we're all set up.
-  const tetrominoState = getNextTetrominoState(initialState);
-  initialState = { ...initialState, ...tetrominoState };
-  setState(initialState);
-
-  window.addEventListener('keydown', pushInput, false);
-};
-
 const getLineClearState = (prevState: GameState): GameState => {
   const { tiles, board } = prevState;
 
@@ -216,167 +156,6 @@ const getNextTetrominoQueueState = (prevState: GameState): GameState => {
 
 const getTime = () => new Date().getTime();
 
-const tick = (): void => {
-  const now = new Date().getTime();
-  const { prevTime } = gameState;
-  const deltaTime = (now - prevTime) / 1000;
-
-  const fallScalar = 1.0;
-
-  setState((prevState) => {
-    return {
-      fallTimer: prevState.fallTimer + (deltaTime * fallScalar),
-      elapsedTime: prevState.elapsedTime + deltaTime,
-      prevTime: now,
-    };
-  });
-
-  // Handle any inputs stored up from last frame.
-  const popInput = () => {
-    const [inputEvent] = gameState.inputQueue.slice(0, 1);
-    setState({ inputQueue: gameState.inputQueue.slice(1) });
-    return inputEvent;
-  };
-
-  while (gameState.inputQueue.length > 0) {
-    const inputEvent = popInput();
-    handleInput(inputEvent);
-  }
-
-  // Every second move the current tetromino's offset down.
-  if (gameState.fallTimer > 1.0) {
-    setState({ fallTimer: 0 });
-    const {
-      currentTetromino: tetromino,
-      currentOffset: offset,
-      board,
-      tiles,
-    } = gameState;
-
-    const nextOffset = { x: offset.x, y: offset.y - 1 };
-    const willCollide = checkCollision(tetromino, nextOffset, board, tiles);
-
-    // If we'll collide by moving, let's stop here.
-    if (willCollide) {
-      const nextState = getNextTetrominoState(gameState);
-      setState({ ...nextState });
-    } else {
-      setState({ currentOffset: nextOffset });
-    }
-  }
-
-  // Render
-  const { board } = gameState;
-  const canvas = document.getElementById('game-board') as HTMLCanvasElement;
-  const context = canvas.getContext('2d');
-
-  const tileSize = 20;
-
-  context.fillStyle = 'rgb(44, 28, 42)';
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-
-  context.fillStyle = 'rgb(100, 100, 100)';
-  context.fillStyle = 'rgb(28, 18, 27)';
-
-  context.save();
-  context.translate(5, -10);
-  context.fillRect(
-    0,
-    canvas.height,
-    tileSize * board.width,
-    -tileSize * board.height,
-  );
-
-  const { currentTetromino, tiles } = gameState;
-  if (tiles) {
-    tiles.forEach((tile) => {
-      const position = {
-        x: tile.x * tileSize,
-        y: canvas.height - (tile.y * tileSize),
-      };
-
-      context.fillStyle = tile.color.toRgb();
-      context.fillRect(position.x, position.y, tileSize, tileSize);
-    });
-  }
-
-  if (currentTetromino) {
-    // Render ghost piece.
-    const { currentOffset } = gameState;
-    const ghostOffset = getSlideOffset(currentTetromino, currentOffset, { x: 0, y: -1 });
-    currentTetromino.tiles.forEach((tile) => {
-      const position = {
-        x: (tile.x + ghostOffset.x) * tileSize,
-        y: canvas.height - (tile.y + ghostOffset.y) * tileSize
-      };
-      context.fillStyle = 'rgba(150, 150, 150, 0.25)';
-      context.fillRect(position.x, position.y, tileSize, tileSize);
-    });
-
-    // Render current tetromino on top of ghost.
-    currentTetromino.tiles.forEach((tile) => {
-      const position = {
-        x: (tile.x + currentOffset.x) * tileSize,
-        y: canvas.height - (tile.y + currentOffset.y) * tileSize,
-      };
-
-      context.fillStyle = tile.color.toRgb();
-      context.fillRect(position.x, position.y, tileSize, tileSize);
-    });
-  }
-
-  context.restore();
-
-  // Render queue
-  context.save();
-  const previewTileSize = tileSize / 2;
-
-  const queueOffset = { x: board.width * tileSize, y: -board.height * tileSize };
-  // context.translate(queueOffset.x, queueOffset.y);
-  context.translate(250, 50);
-
-  const { tetrominoQueue } = gameState;
-  tetrominoQueue.forEach((tetromino) => {
-    tetromino.tiles.forEach((tile) => {
-      context.fillStyle = tile.color.toRgb();
-      context.fillRect(
-        tile.x * previewTileSize, -tile.y * previewTileSize,
-        previewTileSize, previewTileSize);
-    })
-
-    context.translate(0, previewTileSize * 5);
-  });
-
-  context.restore();
-
-  context.save();
-  context.translate(225, 400);
-  context.fillStyle = 'rgb(100, 100, 100)';
-  context.fillText(`Level: ${gameState.level}`, 0, 0);
-  context.fillText(`Score: ${gameState.score}`, 0, 20);
-  context.fillText(`Lines: ${gameState.totalLinesCleared}`, 0, 40);
-  context.restore();
-
-  requestAnimationFrame(tick);
-};
-
-const startGame = (): void => {
-  const shapeKeys = Object.keys(Tetromino.shapes);
-  const shapes = shapeKeys.reduce((acc, key) => {
-    return [...acc, Tetromino.shapes[key]];
-  }, []);
-
-  shapes.forEach((shape) => {
-    console.log(shape.rotated('clockwise').rotated('clockwise').rotated('clockwise').toString());
-  });
-
-  setState({ gameStarted: true });
-
-  tick();
-};
-
 const getDecomposedTetrominoState = (prevState: GameState): GameState => {
   const { currentTetromino, currentOffset: offset } = prevState;
 
@@ -396,7 +175,7 @@ const getDecomposedTetrominoState = (prevState: GameState): GameState => {
 };
 
 const moveTetromino = (prevState: GameState, direction: Offset): GameState => {
-  const { currentTetromino, currentOffset, board, tiles } = gameState;
+  const { currentTetromino, currentOffset, board, tiles } = prevState;
   const testOffset = {
     x: currentOffset.x + direction.x,
     y: currentOffset.y + direction.y,
@@ -413,7 +192,7 @@ const moveTetromino = (prevState: GameState, direction: Offset): GameState => {
 };
 
 const rotateTetromino = (prevState: GameState): GameState => {
-  const { currentTetromino, currentOffset, board, tiles } = gameState;
+  const { currentTetromino, currentOffset, board, tiles } = prevState;
   const rotatedTetromino = currentTetromino.rotated('counter-clockwise');
 
   const willCollide = checkCollision(rotatedTetromino, currentOffset, board, tiles);
@@ -425,11 +204,12 @@ const rotateTetromino = (prevState: GameState): GameState => {
 };
 
 const getSlideOffset = (
+  state: GameState,
   tetromino: Tetromino,
   offset: Offset,
   direction: Offset
 ): Offset => {
-  const { board, tiles } = gameState;
+  const { board, tiles } = state;
   const addVectors = (a: Offset, b: Offset) => ({ x: a.x + b.x, y: a.y + b.y });
   let prevOffset = offset;
   let nextOffset = addVectors(prevOffset, direction);
@@ -444,8 +224,9 @@ const getSlideOffset = (
 
 const dropTetromino = (prevState: GameState): GameState => {
   const nextOffset = getSlideOffset(
-    gameState.currentTetromino,
-    gameState.currentOffset,
+    prevState,
+    prevState.currentTetromino,
+    prevState.currentOffset,
     { x: 0, y: -1 },
   );
 
@@ -499,35 +280,6 @@ const swapTetromino = (state: GameState): GameState => {
   return { ...nextState, blockSwap: false };
 };
 
-const handleInput = (event: KeyboardEvent): void => {
-  let nextState: GameState | undefined;
-  switch (event.key) {
-    case 'ArrowLeft':
-      nextState = moveTetromino(gameState, { x: -1, y: 0 });
-      break;
-    case 'ArrowRight':
-      nextState = moveTetromino(gameState, { x: 1, y: 0 });
-      break;
-    case 'ArrowDown':
-      nextState = moveTetromino(gameState, { x: 0, y: -1 });
-      break;
-    case 'ArrowUp':
-      nextState = rotateTetromino(gameState);
-      break;
-    case ' ':
-      nextState = dropTetromino(gameState);
-      break;
-    case 'Shift':
-      nextState = swapTetromino(gameState);
-      break;
-    default: break;
-  }
-
-  if (nextState) {
-    setState(nextState);
-  }
-}
-
 const checkCollision = (
   tetromino: Tetromino,
   offset: Offset,
@@ -550,5 +302,260 @@ const checkCollision = (
   return colliding;
 };
 
-initialize();
-startGame();
+const makeZetris = (canvas: HTMLCanvasElement) => {
+  const tetrominoQueue = [
+    Tetromino.getRandomShape(),
+    Tetromino.getRandomShape(),
+    Tetromino.getRandomShape(),
+  ];
+
+  const board = new Board(10, 24);
+
+  const initialState: GameState = {
+    elapsedTime: 0,
+    prevTime: getTime(),
+    fallTimer: 0,
+    inputQueue: [],
+    gameStarted: false,
+    moveStats: {
+      hardDropDistance: 0,
+      linesCleared: 0,
+      softDropDistance: 0,
+    },
+    tetrominoQueue,
+    board,
+    tiles: [],
+    currentTetromino: null,
+    currentOffset: null,
+    savedTetromino: null,
+    blockSwap: false,
+    score: 0,
+    level: 1,
+    totalLinesCleared: 0,
+  };
+
+  let gameState = initialState;
+  (window as any).gameState = gameState;
+
+  const setState = (input): void => {
+    let modification;
+    if (typeof input === 'function') {
+      modification = input(gameState);
+    } else {
+      modification = input;
+    }
+
+    gameState = { ...gameState, ...modification };
+    (window as any).gameState = gameState;
+  };
+
+  // Build our first tetromino and starting position from this state then
+  // we're all set up.
+  const tetrominoState = getNextTetrominoState(initialState);
+  setState({ ...initialState, ...tetrominoState });
+
+  // Attach keyboard events to this game.
+  window.addEventListener('keydown', (event: KeyboardEvent): void => {
+    setState(prevState => ({ inputQueue: [...prevState.inputQueue, event] }));
+  }, false);
+
+  const handleInput = (event: KeyboardEvent): void => {
+    let nextState: GameState | undefined;
+    switch (event.key) {
+      case 'ArrowLeft':
+        nextState = moveTetromino(gameState, { x: -1, y: 0 });
+        break;
+      case 'ArrowRight':
+        nextState = moveTetromino(gameState, { x: 1, y: 0 });
+        break;
+      case 'ArrowDown':
+        nextState = moveTetromino(gameState, { x: 0, y: -1 });
+        break;
+      case 'ArrowUp':
+        nextState = rotateTetromino(gameState);
+        break;
+      case ' ':
+        nextState = dropTetromino(gameState);
+        break;
+      case 'Shift':
+        nextState = swapTetromino(gameState);
+        break;
+      default: break;
+    }
+
+    if (nextState) {
+      setState(nextState);
+    }
+  };
+
+  const tick = (): void => {
+    const now = new Date().getTime();
+    const { prevTime } = gameState;
+    const deltaTime = (now - prevTime) / 1000;
+
+    const fallScalar = 1.0;
+
+    setState((prevState) => {
+      return {
+        fallTimer: prevState.fallTimer + (deltaTime * fallScalar),
+        elapsedTime: prevState.elapsedTime + deltaTime,
+        prevTime: now,
+      };
+    });
+
+    // Handle any inputs stored up from last frame.
+    const popInput = () => {
+      const [inputEvent] = gameState.inputQueue.slice(0, 1);
+      setState({ inputQueue: gameState.inputQueue.slice(1) });
+      return inputEvent;
+    };
+
+    while (gameState.inputQueue.length > 0) {
+      const inputEvent = popInput();
+      handleInput(inputEvent);
+    }
+
+    // Every second move the current tetromino's offset down.
+    if (gameState.fallTimer > 1.0) {
+      setState({ fallTimer: 0 });
+      const {
+        currentTetromino: tetromino,
+        currentOffset: offset,
+        board,
+        tiles,
+      } = gameState;
+
+      const nextOffset = { x: offset.x, y: offset.y - 1 };
+      const willCollide = checkCollision(tetromino, nextOffset, board, tiles);
+
+      // If we'll collide by moving, let's stop here.
+      if (willCollide) {
+        const nextState = getNextTetrominoState(gameState);
+        setState({ ...nextState });
+      } else {
+        setState({ currentOffset: nextOffset });
+      }
+    }
+
+    // Render
+    const { board } = gameState;
+    const context = canvas.getContext('2d');
+
+    const tileSize = 20;
+
+    context.fillStyle = 'rgb(44, 28, 42)';
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.fillStyle = 'rgb(100, 100, 100)';
+    context.fillStyle = 'rgb(28, 18, 27)';
+
+    context.save();
+    context.translate(5, -10);
+    context.fillRect(
+      0,
+      canvas.height,
+      tileSize * board.width,
+      -tileSize * board.height,
+    );
+
+    const { currentTetromino, tiles } = gameState;
+    if (tiles) {
+      tiles.forEach((tile) => {
+        const position = {
+          x: tile.x * tileSize,
+          y: canvas.height - (tile.y * tileSize),
+        };
+
+        context.fillStyle = tile.color.toRgb();
+        context.fillRect(position.x, position.y, tileSize, tileSize);
+      });
+    }
+
+    if (currentTetromino) {
+      // Render ghost piece.
+      const { currentOffset } = gameState;
+      const ghostOffset = getSlideOffset(
+        gameState,
+        currentTetromino,
+        currentOffset,
+        { x: 0, y: -1 }
+      );
+
+      currentTetromino.tiles.forEach((tile) => {
+        const position = {
+          x: (tile.x + ghostOffset.x) * tileSize,
+          y: canvas.height - (tile.y + ghostOffset.y) * tileSize
+        };
+        context.fillStyle = 'rgba(150, 150, 150, 0.25)';
+        context.fillRect(position.x, position.y, tileSize, tileSize);
+      });
+
+      // Render current tetromino on top of ghost.
+      currentTetromino.tiles.forEach((tile) => {
+        const position = {
+          x: (tile.x + currentOffset.x) * tileSize,
+          y: canvas.height - (tile.y + currentOffset.y) * tileSize,
+        };
+
+        context.fillStyle = tile.color.toRgb();
+        context.fillRect(position.x, position.y, tileSize, tileSize);
+      });
+    }
+
+    context.restore();
+
+    // Render queue
+    context.save();
+    const previewTileSize = tileSize / 2;
+
+    const queueOffset = { x: board.width * tileSize, y: -board.height * tileSize };
+    // context.translate(queueOffset.x, queueOffset.y);
+    context.translate(250, 50);
+
+    const { tetrominoQueue } = gameState;
+    tetrominoQueue.forEach((tetromino) => {
+      tetromino.tiles.forEach((tile) => {
+        context.fillStyle = tile.color.toRgb();
+        context.fillRect(
+          tile.x * previewTileSize, -tile.y * previewTileSize,
+          previewTileSize, previewTileSize);
+      })
+
+      context.translate(0, previewTileSize * 5);
+    });
+
+    context.restore();
+
+    context.save();
+    context.translate(225, 400);
+    context.fillStyle = 'rgb(100, 100, 100)';
+    context.fillText(`Level: ${gameState.level}`, 0, 0);
+    context.fillText(`Score: ${gameState.score}`, 0, 20);
+    context.fillText(`Lines: ${gameState.totalLinesCleared}`, 0, 40);
+    context.restore();
+
+    requestAnimationFrame(tick);
+  };
+
+  const startGame = (): void => {
+    const shapeKeys = Object.keys(Tetromino.shapes);
+    const shapes = shapeKeys.reduce((acc, key) => {
+      return [...acc, Tetromino.shapes[key]];
+    }, []);
+
+    shapes.forEach((shape) => {
+      console.log(shape.rotated('clockwise').rotated('clockwise').rotated('clockwise').toString());
+    });
+
+    setState({ gameStarted: true });
+
+    tick();
+  };
+
+  return startGame;
+};
+
+const canvas = document.getElementById('game-board') as HTMLCanvasElement;
+const startZetris = makeZetris(canvas);
+startZetris();
