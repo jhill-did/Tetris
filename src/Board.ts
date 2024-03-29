@@ -1,5 +1,5 @@
 
-class Board {
+export class Board {
   width: number;
   height: number;
 
@@ -8,5 +8,3 @@ class Board {
     this.height = height;
   }
 }
-
-export { Board };

@@ -1,5 +1,5 @@
 
-class Color {
+export class Color {
   r: number;
   g: number;
   b: number;
@@ -24,5 +24,3 @@ class Color {
     return new Color(this.r, this.g, this.b, this.a);
   }
 }
-
-export { Color };

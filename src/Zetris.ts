@@ -2,6 +2,7 @@
 import { Tile } from './Tile.js';
 import { Offset, Tetromino } from './Tetromino.js';
 import { Board } from './Board.js';
+import { objectKeys } from './util.js';
 
 type GameState = {
   elapsedTime: number,
@@ -14,12 +15,12 @@ type GameState = {
     linesCleared: number;
     softDropDistance: number;
   };
-  currentTetromino: Tetromino,
-  currentOffset: Offset,
+  currentTetromino: Tetromino | undefined,
+  currentOffset: Offset | undefined,
   tetrominoQueue: Tetromino[],
   board: Board,
   tiles: Tile[],
-  savedTetromino: Tetromino,
+  savedTetromino: Tetromino | undefined,
   blockSwap: boolean,
   score: number,
   level: number,
@@ -35,7 +36,7 @@ const getLineClearState = (prevState: GameState): GameState => {
       ...counts,
       [tile.y]: !!counts[tile.y] ? counts[tile.y] + 1 : 1,
     };
-  }, {});
+  }, {} as Record<number, number>);
 
   // Filter out the tiles which exist on cleared lines.
   const filteredTiles = tiles.reduce((acc, tile) => {
@@ -52,10 +53,10 @@ const getLineClearState = (prevState: GameState): GameState => {
     const tileCopy = tile.clone();
     tileCopy.y = tile.y - lowerClearedLineCount;
     return [...acc, tileCopy];
-  }, []);
+  }, [] as Tile[]);
 
   const linesCleared = Object.keys(lineCounts)
-    .filter(key => lineCounts[key] === board.width)
+    .filter(key => lineCounts[Number(key)] === board.width)
     .length;
 
   const moveStats = {
@@ -159,7 +160,7 @@ const getTime = () => new Date().getTime();
 const getDecomposedTetrominoState = (prevState: GameState): GameState => {
   const { currentTetromino, currentOffset: offset } = prevState;
 
-  if (!currentTetromino) {
+  if (!currentTetromino || !offset) {
     return prevState;
   }
 
@@ -176,10 +177,15 @@ const getDecomposedTetrominoState = (prevState: GameState): GameState => {
 
 const moveTetromino = (prevState: GameState, direction: Offset): GameState => {
   const { currentTetromino, currentOffset, board, tiles } = prevState;
+
+  if (!currentTetromino || !currentOffset) {
+    return prevState;
+  }
+
   const testOffset = {
     x: currentOffset.x + direction.x,
     y: currentOffset.y + direction.y,
-  }
+  };
 
   const willCollide = checkCollision(currentTetromino, testOffset, board, tiles);
   if (!willCollide) {
@@ -193,6 +199,11 @@ const moveTetromino = (prevState: GameState, direction: Offset): GameState => {
 
 const rotateTetromino = (prevState: GameState): GameState => {
   const { currentTetromino, currentOffset, board, tiles } = prevState;
+
+  if (!currentTetromino || !currentOffset) {
+    return prevState;
+  }
+
   const rotatedTetromino = currentTetromino.rotated('counter-clockwise');
 
   const willCollide = checkCollision(rotatedTetromino, currentOffset, board, tiles);
@@ -223,6 +234,10 @@ const getSlideOffset = (
 };
 
 const dropTetromino = (prevState: GameState): GameState => {
+  if (!prevState.currentTetromino || !prevState.currentOffset) {
+    return prevState;
+  }
+
   const nextOffset = getSlideOffset(
     prevState,
     prevState.currentTetromino,
@@ -236,7 +251,7 @@ const dropTetromino = (prevState: GameState): GameState => {
       ...prevState.moveStats,
       hardDropDistance: Math.abs(prevState.currentOffset.y - nextOffset.y),
     }
-  }
+  };
 
   let nextState = getNextTetrominoState({
     ...state,
@@ -255,7 +270,7 @@ const swapTetromino = (state: GameState): GameState => {
 
   let nextState = { ...state };
   const { currentTetromino, savedTetromino, board } = state;
-  if (!state.savedTetromino) {
+  if (!savedTetromino) {
     const nextTetromino = state.tetrominoQueue[0];
     nextState = {
       ...state,
@@ -325,9 +340,9 @@ const makeZetris = (canvas: HTMLCanvasElement) => {
     tetrominoQueue,
     board,
     tiles: [],
-    currentTetromino: null,
-    currentOffset: null,
-    savedTetromino: null,
+    currentTetromino: undefined,
+    currentOffset: undefined,
+    savedTetromino: undefined,
     blockSwap: false,
     score: 0,
     level: 1,
@@ -337,7 +352,9 @@ const makeZetris = (canvas: HTMLCanvasElement) => {
   let gameState = initialState;
   (window as any).gameState = gameState;
 
-  const setState = (input): void => {
+  type Setter = Partial<GameState> | ((prev: GameState) => Partial<GameState>);
+
+  const setState = (input: Setter): void => {
     let modification;
     if (typeof input === 'function') {
       modification = input(gameState);
@@ -418,6 +435,7 @@ const makeZetris = (canvas: HTMLCanvasElement) => {
     // Every second move the current tetromino's offset down.
     if (gameState.fallTimer > 1.0) {
       setState({ fallTimer: 0 });
+
       const {
         currentTetromino: tetromino,
         currentOffset: offset,
@@ -425,21 +443,23 @@ const makeZetris = (canvas: HTMLCanvasElement) => {
         tiles,
       } = gameState;
 
-      const nextOffset = { x: offset.x, y: offset.y - 1 };
-      const willCollide = checkCollision(tetromino, nextOffset, board, tiles);
+      if (tetromino && offset) {
+        const nextOffset = { x: offset.x, y: offset.y - 1 };
+        const willCollide = checkCollision(tetromino, nextOffset, board, tiles);
 
-      // If we'll collide by moving, let's stop here.
-      if (willCollide) {
-        const nextState = getNextTetrominoState(gameState);
-        setState({ ...nextState });
-      } else {
-        setState({ currentOffset: nextOffset });
+        // If we'll collide by moving, let's stop here.
+        if (willCollide) {
+          const nextState = getNextTetrominoState(gameState);
+          setState({ ...nextState });
+        } else {
+          setState({ currentOffset: nextOffset });
+        }
       }
     }
 
     // Render
     const { board } = gameState;
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d')!;
 
     const tileSize = 20;
 
@@ -472,9 +492,9 @@ const makeZetris = (canvas: HTMLCanvasElement) => {
       });
     }
 
-    if (currentTetromino) {
+    const { currentOffset } = gameState;
+    if (currentTetromino && currentOffset) {
       // Render ghost piece.
-      const { currentOffset } = gameState;
       const ghostOffset = getSlideOffset(
         gameState,
         currentTetromino,
@@ -539,10 +559,10 @@ const makeZetris = (canvas: HTMLCanvasElement) => {
   };
 
   const startGame = (): void => {
-    const shapeKeys = Object.keys(Tetromino.shapes);
+    const shapeKeys = objectKeys(Tetromino.shapes);
     const shapes = shapeKeys.reduce((acc, key) => {
       return [...acc, Tetromino.shapes[key]];
-    }, []);
+    }, [] as Tetromino[]);
 
     shapes.forEach((shape) => {
       console.log(shape.rotated('clockwise').rotated('clockwise').rotated('clockwise').toString());

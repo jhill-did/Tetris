@@ -1,5 +1,6 @@
 import { Color } from './Color.js';
 import { Tile } from './Tile.js';
+import { objectKeys } from './util.js';
 
 type Matrix = number[][];
 type Dimensions = { width: number; height: number };
@@ -55,11 +56,11 @@ type ShapeLookup = {
   Z: Tetromino;
 };
 
-class Tetromino {
+export class Tetromino {
   static shapes: ShapeLookup;
 
   static getRandomShape() {
-    const shapeKeys = Object.keys(Tetromino.shapes);
+    const shapeKeys = objectKeys(Tetromino.shapes);
     const randomIndex = Math.floor(Math.random() * shapeKeys.length);
     const randomKey = shapeKeys[randomIndex];
     const copy = Tetromino.shapes[randomKey].clone();
@@ -76,7 +77,7 @@ class Tetromino {
     this.snapOffset = snapOffset;
   }
 
-  rotated(direction) {
+  rotated(direction: 'clockwise' | 'counter-clockwise') {
     const transform = direction === 'clockwise' ?
       (tile: Tile) => new Tile(-tile.y, tile.x, tile.color) :
       (tile: Tile) => new Tile(tile.y, -tile.x, tile.color);
@@ -163,6 +164,3 @@ Tetromino.shapes = {
     [0, 0, 0],
   ], new Color(239, 97, 85)),
 };
-
-
-export { Tetromino };

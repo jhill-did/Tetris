@@ -1,6 +1,6 @@
 import { Color } from './Color.js';
 
-class Tile {
+export class Tile {
   x: number;
   y: number;
   color: Color;
@@ -19,5 +19,3 @@ class Tile {
     );
   }
 }
-
-export { Tile };

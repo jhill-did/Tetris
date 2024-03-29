@@ -4,6 +4,7 @@
     "experimentalSpecifierResolution": "node"
   },
   "compilerOptions": {
+    "strict": true,
     "baseUrl": "./",
     "paths": {
       "~*": ["./*"]
