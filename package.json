@@ -1,0 +1,23 @@
+{
+  "name": "tetris",
+  "version": "1.0.0",
+  "description": "Tetris clone built in JS using modules.",
+  "main": "Board.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhill-did/tetris.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jhill-did/tetris/issues"
+  },
+  "homepage": "https://github.com/jhill-did/tetris#readme",
+  "dependencies": {
+    "vite": "^5.2.6"
+  }
+}
