@@ -1,15 +1,35 @@
 
 import { Tile } from './Tile.js';
-import { Tetromino } from './Tetromino.js';
+import { Offset, Tetromino } from './Tetromino.js';
 import { Board } from './Board.js';
 
-let gameState = {};
-window.gameState = gameState;
+type GameState = {
+  elapsedTime: number,
+  prevTime: number,
+  fallTimer: number,
+  inputQueue: KeyboardEvent[],
+  gameStarted: boolean,
+  moveStats: {
+    hardDropDistance: number;
+    linesCleared: number;
+    softDropDistance: number;
+  };
+  currentTetromino: Tetromino,
+  currentOffset: Offset,
+  tetrominoQueue: Tetromino[],
+  board: Board,
+  tiles: Tile[],
+  savedTetromino: Tetromino,
+  blockSwap: boolean,
+  score: number,
+  level: number,
+  totalLinesCleared: number,
+};
 
-initialize();
-startGame();
+let gameState: GameState = {} as GameState;
+(window as any).gameState = gameState;
 
-function setState(input) {
+const setState = (input): void => {
   let modification;
   if (typeof input === 'function') {
     modification = input(gameState);
@@ -18,14 +38,14 @@ function setState(input) {
   }
 
   gameState = { ...gameState, ...modification };
-  window.gameState = gameState;
-}
+  (window as any).gameState = gameState;
+};
 
-function pushInput(event) {
+const pushInput = (event: KeyboardEvent): void => {
   setState(prevState => ({ inputQueue: [...prevState.inputQueue, event] }));
-}
+};
 
-function initialize() {
+const initialize = (): void => {
   const tetrominoQueue = [
     Tetromino.getRandomShape(),
     Tetromino.getRandomShape(),
@@ -34,17 +54,24 @@ function initialize() {
 
   const board = new Board(10, 24);
 
-  let initialState = {
+  let initialState: GameState = {
     elapsedTime: 0,
     prevTime: getTime(),
     fallTimer: 0,
     inputQueue: [],
     gameStarted: false,
+    moveStats: {
+      hardDropDistance: 0,
+      linesCleared: 0,
+      softDropDistance: 0,
+    },
     tetrominoQueue,
     board,
     tiles: [],
+    currentTetromino: null,
+    currentOffset: null,
     savedTetromino: null,
-    swapBlock: false,
+    blockSwap: false,
     score: 0,
     level: 1,
     totalLinesCleared: 0,
@@ -57,9 +84,9 @@ function initialize() {
   setState(initialState);
 
   window.addEventListener('keydown', pushInput, false);
-}
+};
 
-function getLineClearState(prevState) {
+const getLineClearState = (prevState: GameState): GameState => {
   const { tiles, board } = prevState;
 
   // Determine which lines need to be cleared.
@@ -97,9 +124,9 @@ function getLineClearState(prevState) {
   };
 
   return { ...prevState, tiles: filteredTiles, moveStats };
-}
+};
 
-function getScoreState(state) {
+const getScoreState = (state: GameState): GameState => {
   const {
     linesCleared = 0,
     hardDropDistance = 0,
@@ -131,13 +158,13 @@ function getScoreState(state) {
     level,
     score,
     totalLinesCleared,
-  }
-}
+  };
+};
 
 // Sounds like ending your turn:
 // Get a new tetromino from the queue, submit your current tetromino if any to
 // the tiles list, and clear lines if we can.
-function getNextTetrominoState(prevState) {
+const getNextTetrominoState = (prevState: GameState): GameState => {
   // I promise this would look better with the pipeline operator :(
   const tileState = getDecomposedTetrominoState(prevState);
   const nextLineClearState = getLineClearState(tileState);
@@ -152,19 +179,19 @@ function getNextTetrominoState(prevState) {
     |> getScoreState
   */
 
-  return { ...nextScoreState, blockSwap: false, moveStats: {} };
-}
+  return { ...nextScoreState, blockSwap: false };
+};
 
-function getDefaultTetrominoOffset(tetromino, board) {
+const getDefaultTetrominoOffset = (tetromino: Tetromino, board: Board): Offset => {
   const offset = {
     x: board.width / 2 - tetromino.snapOffset.x,
     y: board.height - tetromino.snapOffset.y,
   };
 
   return offset;
-}
+};
 
-function getNextTetrominoQueueState(prevState) {
+const getNextTetrominoQueueState = (prevState: GameState): GameState => {
   const {
     currentTetromino,
     tetrominoQueue,
@@ -185,28 +212,11 @@ function getNextTetrominoQueueState(prevState) {
     tetrominoQueue: nextQueue,
     currentOffset: nextOffset,
   };
-}
+};
 
-function getTime() {
-  return new Date().getTime();
-}
+const getTime = () => new Date().getTime();
 
-function startGame() {
-  const shapeKeys = Object.keys(Tetromino.shapes);
-  const shapes = shapeKeys.reduce((acc, key) => {
-    return [...acc, Tetromino.shapes[key]];
-  }, []);
-
-  shapes.forEach((shape) => {
-    console.log(shape.rotated('clockwise').rotated('clockwise').rotated('clockwise').toString());
-  });
-
-  setState({ gameStarted: true });
-
-  tick();
-}
-
-function tick() {
+const tick = (): void => {
   const now = new Date().getTime();
   const { prevTime } = gameState;
   const deltaTime = (now - prevTime) / 1000;
@@ -257,7 +267,7 @@ function tick() {
 
   // Render
   const { board } = gameState;
-  const canvas = document.getElementById('game-board');
+  const canvas = document.getElementById('game-board') as HTMLCanvasElement;
   const context = canvas.getContext('2d');
 
   const tileSize = 20;
@@ -350,9 +360,24 @@ function tick() {
   context.restore();
 
   requestAnimationFrame(tick);
-}
+};
 
-function getDecomposedTetrominoState(prevState) {
+const startGame = (): void => {
+  const shapeKeys = Object.keys(Tetromino.shapes);
+  const shapes = shapeKeys.reduce((acc, key) => {
+    return [...acc, Tetromino.shapes[key]];
+  }, []);
+
+  shapes.forEach((shape) => {
+    console.log(shape.rotated('clockwise').rotated('clockwise').rotated('clockwise').toString());
+  });
+
+  setState({ gameStarted: true });
+
+  tick();
+};
+
+const getDecomposedTetrominoState = (prevState: GameState): GameState => {
   const { currentTetromino, currentOffset: offset } = prevState;
 
   if (!currentTetromino) {
@@ -368,9 +393,9 @@ function getDecomposedTetrominoState(prevState) {
     ...prevState,
     tiles: [...prevState.tiles, ...decomposedTiles]
   };
-}
+};
 
-function moveTetromino(prevState, direction) {
+const moveTetromino = (prevState: GameState, direction: Offset): GameState => {
   const { currentTetromino, currentOffset, board, tiles } = gameState;
   const testOffset = {
     x: currentOffset.x + direction.x,
@@ -385,9 +410,9 @@ function moveTetromino(prevState, direction) {
   // TODO: Otherwise, idk play a sound or something.
 
   return prevState;
-}
+};
 
-function rotateTetromino(prevState) {
+const rotateTetromino = (prevState: GameState): GameState => {
   const { currentTetromino, currentOffset, board, tiles } = gameState;
   const rotatedTetromino = currentTetromino.rotated('counter-clockwise');
 
@@ -397,11 +422,15 @@ function rotateTetromino(prevState) {
   }
 
   return prevState;
-}
+};
 
-function getSlideOffset(tetromino, offset, direction) {
+const getSlideOffset = (
+  tetromino: Tetromino,
+  offset: Offset,
+  direction: Offset
+): Offset => {
   const { board, tiles } = gameState;
-  const addVectors = (a, b) => ({ x: a.x + b.x, y: a.y + b.y });
+  const addVectors = (a: Offset, b: Offset) => ({ x: a.x + b.x, y: a.y + b.y });
   let prevOffset = offset;
   let nextOffset = addVectors(prevOffset, direction);
   while (!checkCollision(tetromino, nextOffset, board, tiles)) {
@@ -411,9 +440,9 @@ function getSlideOffset(tetromino, offset, direction) {
   }
 
   return prevOffset;
-}
+};
 
-function dropTetromino(prevState) {
+const dropTetromino = (prevState: GameState): GameState => {
   const nextOffset = getSlideOffset(
     gameState.currentTetromino,
     gameState.currentOffset,
@@ -436,9 +465,9 @@ function dropTetromino(prevState) {
   nextState = getScoreState(nextState);
 
   return nextState;
-}
+};
 
-function swapTetromino(state) {
+const swapTetromino = (state: GameState): GameState => {
   if (state.blockSwap) {
     return state;
   }
@@ -468,10 +497,10 @@ function swapTetromino(state) {
 
   // blockSwap becomes false after landing currentTetromino.
   return { ...nextState, blockSwap: false };
-}
+};
 
-function handleInput(event) {
-  let nextState;
+const handleInput = (event: KeyboardEvent): void => {
+  let nextState: GameState | undefined;
   switch (event.key) {
     case 'ArrowLeft':
       nextState = moveTetromino(gameState, { x: -1, y: 0 });
@@ -499,33 +528,27 @@ function handleInput(event) {
   }
 }
 
-function checkCollision(tetromino, offset, board, tiles) {
+const checkCollision = (
+  tetromino: Tetromino,
+  offset: Offset,
+  board: Board,
+  tiles: Tile[],
+): boolean => {
   const transformedTiles = tetromino.tiles.map((tile) => {
     return { x: tile.x + offset.x, y: tile.y + offset.y };
   });
 
-  const colliding = transformedTiles.reduce((acc, tile) => {
-    if (acc === true) {
-      return true;
-    }
-
+  const colliding = transformedTiles.some((tile) => {
     const inBoard = tile.y > 0 && tile.x >= 0 && tile.x < board.width;
-    const overlappingOtherTile = tiles.reduce((overlapping, otherTile) => {
-      if (overlapping === true) {
-        return true;
-      }
-
-      return otherTile.x === tile.x && otherTile.y === tile.y;
-    }, false);
+    const overlappingOtherTile = tiles.some((otherTile) => (
+      otherTile.x === tile.x && otherTile.y === tile.y
+    ));
 
     return !inBoard || overlappingOtherTile;
-  }, false);
+  });
 
   return colliding;
-}
+};
 
-function getTile(x, y) {
-  return gameState.tiles.find((tile) => {
-    return tile.x === x && tile.y === y;
-  });
-}
+initialize();
+startGame();

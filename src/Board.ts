@@ -1,6 +1,9 @@
 
 class Board {
-  constructor(width, height) {
+  width: number;
+  height: number;
+
+  constructor(width: number, height: number) {
     this.width = width;
     this.height = height;
   }

@@ -1,6 +1,11 @@
 
 class Color {
-  constructor(red, green, blue, alpha = 1.0) {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+
+  constructor(red: number, green: number, blue: number, alpha = 1.0) {
     this.r = red;
     this.g = green;
     this.b = blue;

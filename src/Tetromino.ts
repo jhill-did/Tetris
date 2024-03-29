@@ -1,7 +1,11 @@
 import { Color } from './Color.js';
 import { Tile } from './Tile.js';
 
-function makeTetromino(matrix, color) {
+type Matrix = number[][];
+type Dimensions = { width: number; height: number };
+export type Offset = { x: number, y: number };
+
+const makeTetromino = (matrix: Matrix, color: Color): Tetromino => {
   const height = matrix.length;
   const width = matrix[0].length;
   const center = {
@@ -10,7 +14,7 @@ function makeTetromino(matrix, color) {
   };
 
   const rows = matrix.map((row, rowIndex) => {
-    const temp = row.reduce((acc, cell, columnIndex) => {
+    const temp = row.reduce((acc, cell, columnIndex): Tile[] => {
       if (cell === 1) {
         const xOffset = columnIndex + 0.5 - center.x;
         const yOffset = rowIndex + 0.5 - center.y;
@@ -19,7 +23,7 @@ function makeTetromino(matrix, color) {
       }
 
       return acc;
-    }, []);
+    }, [] as Tile[]);
 
     return temp;
   });
@@ -41,8 +45,32 @@ function makeTetromino(matrix, color) {
   );
 }
 
+type ShapeLookup = {
+  I: Tetromino;
+  O: Tetromino;
+  T: Tetromino;
+  J: Tetromino;
+  L: Tetromino;
+  S: Tetromino;
+  Z: Tetromino;
+};
+
 class Tetromino {
-  constructor(tiles = [], dimensions = null, snapOffset = null) {
+  static shapes: ShapeLookup;
+
+  static getRandomShape() {
+    const shapeKeys = Object.keys(Tetromino.shapes);
+    const randomIndex = Math.floor(Math.random() * shapeKeys.length);
+    const randomKey = shapeKeys[randomIndex];
+    const copy = Tetromino.shapes[randomKey].clone();
+    return copy;
+  };
+
+  tiles: Tile[];
+  dimensions: Dimensions;
+  snapOffset: Offset;
+
+  constructor(tiles: Tile[], dimensions: Dimensions, snapOffset: Offset) {
     this.tiles = tiles;
     this.dimensions = dimensions;
     this.snapOffset = snapOffset;
@@ -50,8 +78,8 @@ class Tetromino {
 
   rotated(direction) {
     const transform = direction === 'clockwise' ?
-      (tile) => new Tile(-tile.y, tile.x, tile.color) :
-      (tile) => new Tile(tile.y, -tile.x, tile.color);
+      (tile: Tile) => new Tile(-tile.y, tile.x, tile.color) :
+      (tile: Tile) => new Tile(tile.y, -tile.x, tile.color);
 
     const transformedTiles = this.tiles.map(transform);
 
@@ -98,56 +126,43 @@ class Tetromino {
   }
 }
 
-Tetromino.shapes = {};
+Tetromino.shapes = {
+  I: makeTetromino([
+    [0, 0, 0, 0],
+    [1, 1, 1, 1],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+  ], new Color(6, 182, 239)),
+  O: makeTetromino([
+    [1, 1],
+    [1, 1],
+  ], new Color(246, 230, 13)),
+  T: makeTetromino([
+    [0, 0, 0],
+    [1, 1, 1],
+    [0, 1, 0],
+  ], new Color(129, 91, 164)),
+  J: makeTetromino([
+    [0, 0, 0],
+    [1, 1, 1],
+    [0, 0, 1],
+  ], new Color(72, 182, 133)),
+  L: makeTetromino([
+    [0, 0, 0],
+    [1, 1, 1],
+    [1, 0, 0],
+  ], new Color(249, 155, 21)),
+  S: makeTetromino([
+    [0, 1, 1],
+    [1, 1, 0],
+    [0, 0, 0],
+  ], new Color(158, 201, 49)),
+  Z: makeTetromino([
+    [1, 1, 0],
+    [0, 1, 1],
+    [0, 0, 0],
+  ], new Color(239, 97, 85)),
+};
 
-Tetromino.shapes.I = makeTetromino([
-  [0, 0, 0, 0],
-  [1, 1, 1, 1],
-  [0, 0, 0, 0],
-  [0, 0, 0, 0],
-], new Color(6, 182, 239));
-
-Tetromino.shapes.O = makeTetromino([
-  [1, 1],
-  [1, 1],
-], new Color(246, 230, 13));
-
-Tetromino.shapes.T = makeTetromino([
-  [0, 0, 0],
-  [1, 1, 1],
-  [0, 1, 0],
-], new Color(129, 91, 164));
-
-Tetromino.shapes.J = makeTetromino([
-  [0, 0, 0],
-  [1, 1, 1],
-  [0, 0, 1],
-], new Color(72, 182, 133));
-
-Tetromino.shapes.L = makeTetromino([
-  [0, 0, 0],
-  [1, 1, 1],
-  [1, 0, 0],
-], new Color(249, 155, 21));
-
-Tetromino.shapes.S = makeTetromino([
-  [0, 1, 1],
-  [1, 1, 0],
-  [0, 0, 0],
-], new Color(158, 201, 49));
-
-Tetromino.shapes.Z = makeTetromino([
-  [1, 1, 0],
-  [0, 1, 1],
-  [0, 0, 0],
-], new Color(239, 97, 85));
-
-Tetromino.getRandomShape = () => {
-  const shapeKeys = Object.keys(Tetromino.shapes);
-  const randomIndex = Math.floor(Math.random() * shapeKeys.length);
-  const randomKey = shapeKeys[randomIndex];
-  const copy = Tetromino.shapes[randomKey].clone();
-  return copy;
-}
 
 export { Tetromino };
